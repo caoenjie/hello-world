@@ -31,7 +31,7 @@
 #include "sx1276.h"
 #include "sx1276-board.h"
 #include "systime.h"
-
+#include "loragw_hal.h"
 /*
  * Local types definition
  */
@@ -106,7 +106,7 @@ void SX1276SetOpMode( uint8_t opMode );
 /*!
  * \brief DIO 0 IRQ callback
  */
-void SX1276OnDio0Irq( void* context );
+void SX1276OnDio0Irq( struct lgw_pkt_rx_s *rxpkt );
 
 /*!
  * \brief DIO 1 IRQ callback
@@ -229,7 +229,6 @@ void SX1276Init( RadioEvents_t *events )
     uint8_t i;
 
     RadioEvents = events;
-
     // Initialize driver timeout timers
 //    TimerInit( &TxTimeoutTimer, SX1276OnTimeoutIrq );
 //    TimerInit( &RxTimeoutTimer, SX1276OnTimeoutIrq );
@@ -249,7 +248,7 @@ void SX1276Init( RadioEvents_t *events )
         SX1276Write( RadioRegsInit[i].Addr, RadioRegsInit[i].Value );
     }
 
-    SX1276SetModem( MODEM_FSK );
+    SX1276SetModem( MODEM_LORA );
 
     SX1276.Settings.State = RF_IDLE;
 }
@@ -403,7 +402,7 @@ void SX1276SetRxConfig( RadioModems_t modem, uint32_t bandwidth,
                          bool crcOn, bool freqHopOn, uint8_t hopPeriod,
                          bool iqInverted, bool rxContinuous )
 {
-	printf("SX1276SetRxConfig function!\n", modem);
+
     SX1276SetModem( modem );
 
     switch( modem )
@@ -572,7 +571,7 @@ void SX1276SetTxConfig( RadioModems_t modem, int8_t power, uint32_t fdev,
                         bool fixLen, bool crcOn, bool freqHopOn,
                         uint8_t hopPeriod, bool iqInverted, uint32_t timeout )
 {
-	printf("SX1276SetTxConfig function!, mode = %d\n",modem);
+
     SX1276SetModem( modem );
 
     SX1276SetRfTxPower( power );
@@ -781,7 +780,7 @@ uint32_t SX1276GetTimeOnAir( RadioModems_t modem, uint8_t pktLen )
 
 void SX1276Send( uint8_t *buffer, uint8_t size )
 {
-	printf("SX1276 send function !\n");
+
     uint32_t txTimeout = 0;
 
     switch( SX1276.Settings.Modem )
@@ -818,9 +817,10 @@ void SX1276Send( uint8_t *buffer, uint8_t size )
         break;
     case MODEM_LORA:
         {
-        	printf("LoRa mode!\n");
+
             if( SX1276.Settings.LoRa.IqInverted == true )
             {
+            	printf("--congfig IQinverted = true in SX1276 setSend function-----\n");
                 SX1276Write( REG_LR_INVERTIQ, ( ( SX1276Read( REG_LR_INVERTIQ ) & RFLR_INVERTIQ_TX_MASK & RFLR_INVERTIQ_RX_MASK ) | RFLR_INVERTIQ_RX_OFF | RFLR_INVERTIQ_TX_ON ) );
                 SX1276Write( REG_LR_INVERTIQ2, RFLR_INVERTIQ2_ON );
             }
@@ -857,7 +857,7 @@ void SX1276Send( uint8_t *buffer, uint8_t size )
 
 void SX1276SetSleep( void )
 {
-	printf("SX1276SetSleep funciton!\n");
+
 //    TimerStop( &RxTimeoutTimer );
 //    TimerStop( &TxTimeoutTimer );
 
@@ -922,6 +922,7 @@ void SX1276SetRx( uint32_t timeout )
             }
             else
             {
+//            	printf("---config IQinverted = false in SX1278 setRX function---\n");
                 SX1276Write( REG_LR_INVERTIQ, ( ( SX1276Read( REG_LR_INVERTIQ ) & RFLR_INVERTIQ_TX_MASK & RFLR_INVERTIQ_RX_MASK ) | RFLR_INVERTIQ_RX_OFF | RFLR_INVERTIQ_TX_OFF ) );
                 SX1276Write( REG_LR_INVERTIQ2, RFLR_INVERTIQ2_OFF );
             }
@@ -1043,7 +1044,7 @@ void SX1276SetRx( uint32_t timeout )
 
 void SX1276SetTx( uint32_t timeout )
 {
-	printf("SX1276SetTx function!\n");
+
 //    TimerSetValue( &TxTimeoutTimer, timeout );
 
     switch( SX1276.Settings.Modem )
@@ -1068,7 +1069,6 @@ void SX1276SetTx( uint32_t timeout )
         break;
     case MODEM_LORA:
         {
-        	printf("LoRa mode!\n");
             if( SX1276.Settings.LoRa.FreqHopOn == true )
             {
                 SX1276Write( REG_LR_IRQFLAGSMASK, RFLR_IRQFLAGS_RXTIMEOUT |
@@ -1141,7 +1141,7 @@ void SX1276StartCad( void )
 
 void SX1276SetTxContinuousWave( uint32_t freq, int8_t power, uint16_t time )
 {
-	printf("SX1276SetTxContinuousWave wave function!\n");
+
     uint32_t timeout = ( uint32_t )( time * 1000 );
 
     SX1276SetChannel( freq );
@@ -1308,7 +1308,7 @@ void SX1276SetMaxPayloadLength( RadioModems_t modem, uint8_t max )
 
 void SX1276SetPublicNetwork( bool enable )
 {
-	printf("SX1276SetPublicNetwork function!\n");
+
     SX1276SetModem( MODEM_LORA );
     SX1276.Settings.LoRa.PublicNetwork = enable;
     if( enable == true )
@@ -1404,11 +1404,10 @@ void SX1276OnTimeoutIrq( void* context )
     }
 }
 
-void SX1276OnDio0Irq( void* context )
+void SX1276OnDio0Irq(struct lgw_pkt_rx_s *rxpkt)
 {
 	printf("SX1276OnDio0Irq function!\n");
     volatile uint8_t irqFlags = 0;
-
     switch( SX1276.Settings.State )
     {
         case RF_RX_RUNNING:
@@ -1518,7 +1517,8 @@ void SX1276OnDio0Irq( void* context )
 
                         if( ( RadioEvents != NULL ) && ( RadioEvents->RxError != NULL ) )
                         {
-                            RadioEvents->RxError( );
+//                            RadioEvents->RxError( );
+
                         }
                         break;
                     }
@@ -1552,7 +1552,7 @@ void SX1276OnDio0Irq( void* context )
                             SX1276.Settings.LoRaPacketHandler.RssiValue = RSSI_OFFSET_LF + rssi + ( rssi >> 4 );
                         }
                     }
-                    printf("rssi = %d ,snr = %d\n",rssi, SX1276.Settings.LoRaPacketHandler.SnrValue);
+
                     SX1276.Settings.LoRaPacketHandler.Size = SX1276Read( REG_LR_RXNBBYTES );
                     SX1276Write( REG_LR_FIFOADDRPTR, SX1276Read( REG_LR_FIFORXCURRENTADDR ) );
                     SX1276ReadFifo( RxTxBuffer, SX1276.Settings.LoRaPacketHandler.Size );
@@ -1565,13 +1565,20 @@ void SX1276OnDio0Irq( void* context )
 
 //                    if( ( RadioEvents != NULL ) && ( RadioEvents->RxDone != NULL ) )
 //                    {
+                    	printf("rssi = %d ,snr = %d\n",SX1276.Settings.LoRaPacketHandler.RssiValue, SX1276.Settings.LoRaPacketHandler.SnrValue);
                     	printf("payload : %s,len = %d\n",RxTxBuffer, SX1276.Settings.LoRaPacketHandler.Size );
                     	for(int i =0; i<SX1276.Settings.LoRaPacketHandler.Size; i++)
                     	{
                     		printf("%x ",RxTxBuffer[i]);
                     	}
-
+//                    	RadioEvents->TxDone();
 //                        RadioEvents->RxDone( RxTxBuffer, SX1276.Settings.LoRaPacketHandler.Size, SX1276.Settings.LoRaPacketHandler.RssiValue, SX1276.Settings.LoRaPacketHandler.SnrValue );
+
+                    	memcpy(rxpkt->payload,RxTxBuffer,SX1276.Settings.LoRaPacketHandler.Size);
+                    	rxpkt->size = SX1276.Settings.LoRaPacketHandler.Size;
+                    	rxpkt->rssi = SX1276.Settings.LoRaPacketHandler.RssiValue;
+                    	rxpkt->snr = SX1276.Settings.LoRaPacketHandler.SnrValue;
+
 //                    }
                     printf("\n");
                 }

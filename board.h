@@ -39,6 +39,8 @@ enum BoardPowerSources
  */
 void BoardInitMcu( void );
 
+/*close spi */
+int BoardClose(void);
 /*!
  * \brief Resets the mcu.
  */

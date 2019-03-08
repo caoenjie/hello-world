@@ -21,39 +21,15 @@
  * \author    Gregory Cristian ( Semtech )
  */
 #include <stdio.h>
-//#include "stm32l0xx.h"
+
 #include "utilities.h"
-//#include "gpio.h"
-//#include "adc.h"
-//#include "spi.h"
-//#include "i2c.h"
-//#include "uart.h"
-//#include "timer.h"
 #include "board-config.h"
-//#include "lpm-board.h"
-//#include "rtc-board.h"
 #include "sx1276-board.h"
 #include "board.h"
 #include "loragw_spi.h"
-/*!
- * Unique Devices IDs register set ( STM32L0xxx )
- */
-#define         ID1                                 ( 0x1FF80050 )
-#define         ID2                                 ( 0x1FF80054 )
-#define         ID3                                 ( 0x1FF80064 )
+#include "typedef.h"
 
-/*!
- * LED GPIO pins objects
- */
-//Gpio_t Led1;
-//Gpio_t Led2;
-//Gpio_t Led3;
-//Gpio_t Led4;
 
-/*
- * MCU objects
- */
-//Uart_t Uart2;
 
 //check if the spi is working
 int SX1276CheckSPI(void);
@@ -140,6 +116,20 @@ void BoardInitMcu( void )
     SX1276IoInit( );
 }
 
+int BoardClose(void)
+{
+	if (SX1276.Spi != NULL)
+	{
+		lgw_spi_close(SX1276.Spi);
+		SX1276.Spi = NULL;
+		DEBUG_MSG("Note: success disconnecting the concentrator\n");
+		return LGW_REG_SUCCESS;
+	} else {
+		DEBUG_MSG("WARNING: concentrator was already disconnected\n");
+		return LGW_REG_ERROR;
+	}
+}
+
 int SX1276CheckSPI(void)
 {
 
@@ -176,22 +166,22 @@ int SX1276CheckSPI(void)
 //    SX1276IoDeInit( );
 //}
 
-uint32_t BoardGetRandomSeed( void )
-{
-    return ( ( *( uint32_t* )ID1 ) ^ ( *( uint32_t* )ID2 ) ^ ( *( uint32_t* )ID3 ) );
-}
+//uint32_t BoardGetRandomSeed( void )
+//{
+//    return ( ( *( uint32_t* )ID1 ) ^ ( *( uint32_t* )ID2 ) ^ ( *( uint32_t* )ID3 ) );
+//}
 
-void BoardGetUniqueId( uint8_t *id )
-{
-    id[7] = ( ( *( uint32_t* )ID1 )+ ( *( uint32_t* )ID3 ) ) >> 24;
-    id[6] = ( ( *( uint32_t* )ID1 )+ ( *( uint32_t* )ID3 ) ) >> 16;
-    id[5] = ( ( *( uint32_t* )ID1 )+ ( *( uint32_t* )ID3 ) ) >> 8;
-    id[4] = ( ( *( uint32_t* )ID1 )+ ( *( uint32_t* )ID3 ) );
-    id[3] = ( ( *( uint32_t* )ID2 ) ) >> 24;
-    id[2] = ( ( *( uint32_t* )ID2 ) ) >> 16;
-    id[1] = ( ( *( uint32_t* )ID2 ) ) >> 8;
-    id[0] = ( ( *( uint32_t* )ID2 ) );
-}
+//void BoardGetUniqueId( uint8_t *id )
+//{
+//    id[7] = ( ( *( uint32_t* )ID1 )+ ( *( uint32_t* )ID3 ) ) >> 24;
+//    id[6] = ( ( *( uint32_t* )ID1 )+ ( *( uint32_t* )ID3 ) ) >> 16;
+//    id[5] = ( ( *( uint32_t* )ID1 )+ ( *( uint32_t* )ID3 ) ) >> 8;
+//    id[4] = ( ( *( uint32_t* )ID1 )+ ( *( uint32_t* )ID3 ) );
+//    id[3] = ( ( *( uint32_t* )ID2 ) ) >> 24;
+//    id[2] = ( ( *( uint32_t* )ID2 ) ) >> 16;
+//    id[1] = ( ( *( uint32_t* )ID2 ) ) >> 8;
+//    id[0] = ( ( *( uint32_t* )ID2 ) );
+//}
 
 uint16_t BoardBatteryMeasureVolage( void )
 {
